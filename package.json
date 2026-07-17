@@ -41,7 +41,7 @@
     "@particle-academy/fancy-git": "^0.1.0"
   },
   "devDependencies": {
-    "@particle-academy/fancy-git": "file:../fancy-git-js",
+    "@particle-academy/fancy-git": "^0.1.0",
     "tsup": "^8.5.0",
     "typescript": "^5.8.0",
     "vitest": "^3.2.0"
