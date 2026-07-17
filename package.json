@@ -1,0 +1,22 @@
+{
+  "name": "@particle-academy/fancy-git-gitlab",
+  "version": "0.1.0",
+  "description": "GitLab.com and GitLab Self-Managed adapter for @particle-academy/fancy-git.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": { ".": { "import": { "types": "./dist/index.d.ts", "default": "./dist/index.js" }, "require": { "types": "./dist/index.d.cts", "default": "./dist/index.cjs" } } },
+  "files": ["dist", "README.md", "LICENSE"],
+  "sideEffects": false,
+  "engines": { "node": ">=20" },
+  "scripts": { "build": "tsup", "lint": "tsc --noEmit", "test": "vitest run", "prepublishOnly": "npm run lint && npm test && npm run build" },
+  "dependencies": { "@gitbeaker/rest": "^43.0.0" },
+  "peerDependencies": { "@particle-academy/fancy-git": "^0.1.0" },
+  "devDependencies": { "@particle-academy/fancy-git": "file:../fancy-git-js", "tsup": "^8.5.0", "typescript": "^5.8.0", "vitest": "^3.2.0" },
+  "repository": { "type": "git", "url": "git+https://github.com/Particle-Academy/fancy-git-gitlab-js.git" },
+  "homepage": "https://github.com/Particle-Academy/fancy-git-gitlab-js#readme",
+  "bugs": { "url": "https://github.com/Particle-Academy/fancy-git-gitlab-js/issues" },
+  "publishConfig": { "access": "public" }
+}
