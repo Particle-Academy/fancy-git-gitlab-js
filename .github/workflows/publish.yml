@@ -16,5 +16,6 @@ jobs:
       - run: npm run lint
       - run: npm test
       - run: npm run build
-      - run: npx -y npm@latest publish --provenance --access public
-        env: { NODE_AUTH_TOKEN: "${{ secrets.NPM_TOKEN }}" }
+      # Trusted Publishing (OIDC) — authentication comes from GitHub Actions.
+      # Pin npm 11.18.0 because npm 12.0.0 has a broken provenance path.
+      - run: npx -y npm@11.18.0 publish --provenance --access public
