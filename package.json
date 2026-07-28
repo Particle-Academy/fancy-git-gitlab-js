@@ -38,10 +38,10 @@
     "@gitbeaker/rest": "^43.0.0"
   },
   "peerDependencies": {
-    "@particle-academy/fancy-git": "^0.1.0"
+    "@particle-academy/fancy-git": ">=0.1 <2.0"
   },
   "devDependencies": {
-    "@particle-academy/fancy-git": "^0.1.0",
+    "@particle-academy/fancy-git": "^0.1.2",
     "tsup": "^8.5.0",
     "typescript": "^5.8.0",
     "vitest": "^3.2.0"
