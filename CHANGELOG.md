@@ -14,6 +14,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## 0.1.1 — 2026-07-17
+
+- Maintenance only (2 internal commits).
+
+## 0.1.0 — 2026-07-17
+
+### Fixed
+
+- install core package in isolated builds
+
+### Changed
+
+- Add first-publish workflow
+- Resolve esbuild security advisory
+- Build GitLab provider adapter
+
 ### Changed
 
 - Widened the `@particle-academy/fancy-git` requirement from `^0.1.0` to `>=0.1 <2.0`, so a
