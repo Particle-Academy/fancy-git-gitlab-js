@@ -1,6 +1,6 @@
 {
   "name": "@particle-academy/fancy-git-gitlab",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "GitLab.com and GitLab Self-Managed adapter for @particle-academy/fancy-git.",
   "license": "MIT",
   "type": "module",
@@ -26,7 +26,7 @@
   ],
   "sideEffects": false,
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "scripts": {
     "build": "tsup",
