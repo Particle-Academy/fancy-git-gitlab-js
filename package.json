@@ -44,7 +44,7 @@
     "@particle-academy/fancy-git": "^0.1.2",
     "tsup": "^8.5.0",
     "typescript": "^5.8.0",
-    "vitest": "^3.2.0"
+    "vitest": "^4.1.11"
   },
   "repository": {
     "type": "git",
