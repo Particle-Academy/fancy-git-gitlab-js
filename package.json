@@ -1,6 +1,6 @@
 {
   "name": "@particle-academy/fancy-git-gitlab",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "GitLab.com and GitLab Self-Managed adapter for @particle-academy/fancy-git.",
   "license": "MIT",
   "type": "module",
@@ -34,14 +34,11 @@
     "test": "vitest run",
     "prepublishOnly": "npm run lint && npm test && npm run build"
   },
-  "dependencies": {
-    "@gitbeaker/rest": "^43.0.0"
-  },
   "peerDependencies": {
-    "@particle-academy/fancy-git": ">=0.1 <2.0"
+    "@particle-academy/fancy-git": ">=0.1.2 <2.0"
   },
   "devDependencies": {
-    "@particle-academy/fancy-git": "^0.1.2",
+    "@particle-academy/fancy-git": "^0.3.0",
     "tsup": "^8.5.0",
     "typescript": "^5.8.0",
     "vitest": "^4.1.11"
