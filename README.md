@@ -1,5 +1,7 @@
 # Fancy Git — GitLab adapter
 
+[![Fancified](art/fancified.svg)](https://particle.academy)
+
 GitLab.com and GitLab Self-Managed implementation of the Fancy Git provider
 contract, over a small first-party GitLab REST v4 client. No runtime
 dependencies beyond `@particle-academy/fancy-git`.
