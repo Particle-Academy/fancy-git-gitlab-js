@@ -9,7 +9,7 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # Release gate: a tag with no CHANGELOG entry fails HERE, before the
       # package reaches the registry. A published version whose changes are
@@ -55,7 +55,7 @@ jobs:
       # here. The allowlist is FETCHED, never vendored: one source of truth,
       # so there is no per-repo copy that can drift out of agreement with it.
       - name: Fetch the third-party allowlist
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: Particle-Academy/.github
           path: .third-party-allowlist
@@ -71,7 +71,7 @@ jobs:
           # multi-line run: block is PowerShell and rm -rf is not a command.
           node -e "require('node:fs').rmSync('.third-party-allowlist',{recursive:true,force:true})"
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with: { node-version: 22, registry-url: "https://registry.npmjs.org", cache: npm }
       - run: npm ci
       - run: npm run lint
