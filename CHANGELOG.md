@@ -12,13 +12,34 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 > guessed-at, because a changelog that invents its own history is worse than one
 > that admits where it begins.
 
-## [Unreleased]
+## 0.3.1 — 2026-10-09
 
 ### Fixed
 
 - **`CHANGELOG.md` is now in the published tarball.** `files` did not whitelist it, so npm never shipped it — and this package puts breaking changes in MINOR releases and tells you in the README to read the entry before taking one. The instruction existed for the author, who has the file, and not for the consumer, who is the only one being instructed. Nothing for you to do; the file simply arrives from this release on.
 
 ### Security
+
+- **A hostile instance URL could burn CPU before being rejected (ReDoS).**
+  `normalizeBaseUrl()` stripped the trailing slash with `replace(/\/+$/, "")`,
+  which is polynomial: the run of slashes is retried from every position and
+  each attempt scans to the end. A URL whose path holds many slashes followed by
+  anything else cost quadratic time -- **measured on 0.3.0: 20k slashes 288ms,
+  60k 2.2s, 120k 9.4s** -- and the strip runs BEFORE the path is validated, so
+  the time was spent on the way in and the URL was rejected afterwards anyway.
+  Now a character scan: the same 120k case takes **3ms**.
+
+  **Nothing for a consumer to do, and no behaviour changed** -- every URL that
+  was accepted is still accepted, and every one that was rejected is still
+  rejected, including an interior `//`. It matters if your host takes its
+  GitLab URL from a database, an env var or a form rather than a literal, since
+  that is attacker-influenced input reaching a library. CodeQL
+  `js/polynomial-redos`, alert #1, HIGH, open since 2026-09-14.
+
+  The two sibling adapters were checked and are NOT affected: `fancy-git-github`
+  and `fancy-git-bitbucket` strip with `/\/$/` -- one slash, no `+`, which
+  cannot backtrack. The leading-slash strip in this package's `index.ts` is
+  anchored with `^` and is linear.
 
 - `source-map-js` is pinned forward to `^1.2.2` via `overrides`. Versions up to
   1.2.1 allow an event-loop denial of service through indexed source-map section

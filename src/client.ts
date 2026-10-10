@@ -94,6 +94,9 @@ function flatten(messages: unknown): string {
  * The same rules, messages and error codes as `FancyGit\GitLab\GitLabClient`
  * in the PHP adapter.
  */
+/** `"/"`. Compared by code unit so the trailing-slash scan needs no regex. */
+const SLASH = 47;
+
 export class GitLabClient {
   static readonly GITLAB_COM = "https://gitlab.com";
   /** GitLab's own ceiling; it silently serves 100 for anything larger. */
@@ -168,7 +171,21 @@ export class GitLabClient {
       throw invalid("The GitLab base URL does not have a valid port.");
     }
 
-    const path = rawPath.replace(/\/+$/, "");
+    // Trailing slashes stripped by scanning, NOT by `replace(/\/+$/, "")`.
+    // That regex is polynomial (CodeQL js/polynomial-redos, alert #1): `\/+$`
+    // is unanchored at the start, so the engine retries the run of slashes from
+    // every position and each attempt scans to the end. Measured on 0.3.0 with
+    // the slashes not at the end: 20k took 288ms, 60k 2.2s, 120k 9.4s.
+    //
+    // It is reachable from outside because this strip runs BEFORE the path is
+    // validated, so a hostile URL burns the time on the way in and is only
+    // rejected afterwards. A host taking its instance URL from a database, an
+    // env var or a form is handing this attacker-influenced input.
+    let pathEnd = rawPath.length;
+    while (pathEnd > 0 && rawPath.charCodeAt(pathEnd - 1) === SLASH) {
+      pathEnd -= 1;
+    }
+    const path = rawPath.slice(0, pathEnd);
     if (path !== "") {
       // Plain segments only: no percent-encoding, no empty or dot segments.
       if (!/^(?:\/[A-Za-z0-9._~-]+)+$/.test(path) || hasDotSegment(path.slice(1))) {
