@@ -101,6 +101,8 @@ export class GitLabClient {
   static readonly GITLAB_COM = "https://gitlab.com";
   /** GitLab's own ceiling; it silently serves 100 for anything larger. */
   static readonly MAX_PER_PAGE = 100;
+  /** Longest pagination `Link` header parsed. GitLab's are a few hundred bytes; a longer one is refused, so a hostile server cannot make the client do unbounded work. */
+  static readonly MAX_LINK_HEADER_LENGTH = 8 * 1024;
 
   readonly baseUrl: string;
   readonly tokenType: GitLabTokenType;
@@ -405,20 +407,85 @@ export class GitLabClient {
     return /^[1-9][0-9]{0,9}$/.test(next) ? next : undefined;
   }
 
+  /**
+   * The `rel="next"` target of a `Link` header (RFC 8288), or undefined.
+   *
+   * Linear by construction: indexOf / slice / split only. 0.3.0 and 0.3.1
+   * matched the header with `/<([^>]*)>((?:\s*;\s*[^;,]+)*)/g`, which is
+   * quadratic: on 100,000 `<` with no `>` every `<` scans to the end before
+   * failing (5.5 s). The header comes from whatever server `baseUrl` points
+   * at, so it is untrusted input.
+   *
+   * A header over {@link GitLabClient.MAX_LINK_HEADER_LENGTH} is refused with an
+   * error, not ignored: ignoring it would end the walk early and return a list
+   * that reads as complete.
+   */
   static #nextLink(response: Response): string | undefined {
     const header = response.headers.get("link");
     if (!header) return undefined;
-    for (const [, target, params] of header.matchAll(/<([^>]*)>((?:\s*;\s*[^;,]+)*)/g)) {
-      const rel = /;\s*rel\s*=\s*"?([^";]*)"?/i.exec(params ?? "");
-      if (rel && rel[1]!.trim().toLowerCase().split(/\s+/).includes("next")) return target;
+    if (header.length > GitLabClient.MAX_LINK_HEADER_LENGTH) {
+      throw new GitError("unknown", `GitLab sent a pagination Link header longer than ${GitLabClient.MAX_LINK_HEADER_LENGTH} characters. It was not parsed, and the list was not returned, because it may be incomplete.`, response.status);
     }
-    return undefined;
+
+    let from = 0;
+    for (;;) {
+      const open = header.indexOf("<", from);
+      if (open === -1) return undefined;
+      const close = header.indexOf(">", open + 1);
+      if (close === -1) return undefined;
+      const target = header.slice(open + 1, close);
+
+      // The parameters run from `>` to the next comma (a comma inside `<...>`
+      // belongs to the target and was skipped with it). Like the regex this
+      // replaced, they count only if they begin with `;`; otherwise the next
+      // link is searched for right after `>`.
+      let end = header.indexOf(",", close + 1);
+      if (end === -1) end = header.length;
+      const params = header.slice(close + 1, end);
+      if (!params.trimStart().startsWith(";")) {
+        from = close + 1;
+        continue;
+      }
+
+      for (const param of params.split(";").slice(1)) {
+        const eq = param.indexOf("=");
+        if (eq === -1 || param.slice(0, eq).trim().toLowerCase() !== "rel") continue;
+        let value = param.slice(eq + 1).trim();
+        if (value.startsWith('"')) value = value.slice(1);
+        const quote = value.indexOf('"');
+        if (quote !== -1) value = value.slice(0, quote);
+        if (value.trim().toLowerCase().split(/\s+/).includes("next")) return target;
+        break;
+      }
+      from = end;
+    }
+  }
+
+  /**
+   * `[link, scheme, authority, path]` of an absolute URL with no fragment, or
+   * null. Same result as `^([A-Za-z][A-Za-z0-9+.-]*):\/\/([^/?#]*)([^?#]*)(\?[^#]*)?$`,
+   * which this replaces because its adjacent `([^/?#]*)([^?#]*)` backtracks
+   * quadratically on a long slash-free authority that ends in `#` (115 ms at
+   * 8 KB). Linear: indexOf / slice only.
+   */
+  static #splitAbsoluteUrl(link: string): [string, string, string, string] | null {
+    if (link.includes("#")) return null;
+    const colon = link.indexOf(":");
+    const scheme = colon === -1 ? "" : link.slice(0, colon);
+    if (!/^[A-Za-z][A-Za-z0-9+.-]*$/.test(scheme) || !link.startsWith("//", colon + 1)) return null;
+    const rest = link.slice(colon + 3);
+    const query = rest.indexOf("?");
+    const beforeQuery = query === -1 ? rest : rest.slice(0, query);
+    const slash = beforeQuery.indexOf("/");
+    const authority = slash === -1 ? beforeQuery : beforeQuery.slice(0, slash);
+    const path = slash === -1 ? "" : beforeQuery.slice(slash);
+    return [link, scheme, authority, path];
   }
 
   /** A server-supplied link, accepted only if it points back inside this instance's API. */
   #ownLink(link: string, what: string): string {
     const mine = /^https:\/\/([^/:]+|\[[^\]]+\])(?::(\d+))?(\/.*)?$/.exec(this.baseUrl)!;
-    const theirs = /[\x00-\x20\x7F\\]/.test(link) ? null : /^([A-Za-z][A-Za-z0-9+.-]*):\/\/([^/?#]*)([^?#]*)(\?[^#]*)?$/.exec(link);
+    const theirs = /[\x00-\x20\x7F\\]/.test(link) ? null : GitLabClient.#splitAbsoluteUrl(link);
     const authority = theirs ? /^(\[[^\]]*\]|[^:@]*)(?::(\d+))?$/.exec(theirs[2]!) : null;
     const prefix = `${mine[3] ?? ""}${API_ROOT}`;
     const path = theirs?.[3] ?? "";

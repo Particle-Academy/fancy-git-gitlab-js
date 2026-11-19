@@ -10,7 +10,8 @@ works in this repo.
 - `src/client.ts` — `GitLabClient`, the small first-party GitLab REST v4 client.
 - `src/index.ts` — `GitLabProvider`, the fancy-git provider over that client.
 - `tests/` — the vitest suite (`provider.test.ts`, `provider-contract.test.ts`,
-  `security-and-errors.test.ts`, `base-url-redos.test.ts`, helpers in
+  `security-and-errors.test.ts`, `base-url-redos.test.ts`,
+  `link-header-redos.test.ts`, helpers in
   `support/`).
 
 ## Commands

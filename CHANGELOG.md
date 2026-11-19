@@ -14,6 +14,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Security
+
+- **The keyset-pagination `Link` header is parsed in linear time.** 0.3.0 and
+  0.3.1 (both released) matched it with a backtracking regex that took 5.5 s on
+  a 100,000-character header of `<`, and the header comes from whatever server
+  `baseUrl` points at. It is now parsed with indexOf / slice, and a `Link`
+  header over 8 KB (`GitLabClient.MAX_LINK_HEADER_LENGTH`) is refused with a
+  `GitError` instead of parsed: refused rather than ignored, because ignoring
+  it would end `getAll` early with a list that reads as complete. GitLab's own
+  headers are a few hundred bytes.
+- **Checking where a pagination link points is linear too.** The same releases
+  split the link with `([^/?#]*)([^?#]*)`, which backtracks on a long slash-free
+  host ending in `#` (115 ms at 8 KB, unbounded before the cap). Replaced with
+  indexOf / slice; which links are followed is unchanged.
+- Consumers just upgrade; no API changed. Regression tests time the hostile
+  inputs (under 50 ms) and pin the parsing behaviour.
+
 ### Changed
 
 - **CI: the lab-certificate gate verifies against the lab's rotated key list.**
