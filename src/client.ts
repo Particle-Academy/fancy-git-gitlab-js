@@ -103,6 +103,10 @@ export class GitLabClient {
   static readonly MAX_PER_PAGE = 100;
   /** Longest pagination `Link` header parsed. GitLab's are a few hundred bytes; a longer one is refused, so a hostile server cannot make the client do unbounded work. */
   static readonly MAX_LINK_HEADER_LENGTH = 8 * 1024;
+  /** How many times a GET that answered 5xx is sent again. Never a POST. */
+  static readonly GET_RETRIES = 2;
+  /** The wait before retry n is n times this. */
+  static readonly RETRY_DELAY_MS = 100;
 
   readonly baseUrl: string;
   readonly tokenType: GitLabTokenType;
@@ -317,15 +321,23 @@ export class GitLabClient {
       headers["Content-Type"] = "application/json";
     }
 
+    // A GET that answers 5xx is retried, at most GET_RETRIES times: it is
+    // idempotent, so a second attempt cannot do anything the first did not. A
+    // POST is never replayed, because GitLab may already hold what it created.
     let response: Response;
-    try {
-      response = await this.#fetch(url, { method, headers, body, redirect: "manual", signal: AbortSignal.timeout(this.#timeoutMs) });
-    } catch (error) {
-      // Message only. Nothing that holds the request — and so the credential
-      // header — is attached as a cause a logger could serialize.
-      const e = error as Error & { cause?: { message?: unknown } };
-      const reason = e.name === "TimeoutError" ? `timed out after ${this.#timeoutMs} ms` : [e.message, typeof e.cause?.message === "string" ? e.cause.message : ""].filter(Boolean).join(": ");
-      throw new GitError("unknown", `GitLab request ${what} could not be completed: ${reason}`);
+    for (let attempt = 0; ; attempt++) {
+      try {
+        response = await this.#fetch(url, { method, headers, body, redirect: "manual", signal: AbortSignal.timeout(this.#timeoutMs) });
+      } catch (error) {
+        // Message only. Nothing that holds the request — and so the credential
+        // header — is attached as a cause a logger could serialize.
+        const e = error as Error & { cause?: { message?: unknown } };
+        const reason = e.name === "TimeoutError" ? `timed out after ${this.#timeoutMs} ms` : [e.message, typeof e.cause?.message === "string" ? e.cause.message : ""].filter(Boolean).join(": ");
+        throw new GitError("unknown", `GitLab request ${what} could not be completed: ${reason}`);
+      }
+      if (method !== "GET" || response.status < 500 || response.status > 599 || attempt >= GitLabClient.GET_RETRIES) break;
+      await response.body?.cancel().catch(() => undefined);
+      await new Promise((resolve) => setTimeout(resolve, GitLabClient.RETRY_DELAY_MS * (attempt + 1)));
     }
 
     const status = response.status;

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { GitError } from "@particle-academy/fancy-git";
-import { GitLabProvider } from "../src/index.js";
+import { GitLabClient, GitLabProvider } from "../src/index.js";
 import { FakeGitLab, TOKEN } from "./support/fake-gitlab.js";
 
 /**
@@ -247,18 +247,20 @@ describe("GitLab's failures, as the contract's GitError", () => {
     [422, { message: { title: ["can't be blank"], target_branch: ["is invalid"] } }, "invalid_argument", '"title" can\'t be blank, "target_branch" is invalid'],
     [500, { message: "500 Internal Server Error" }, "unknown", "500 Internal Server Error"],
   ])("maps %i to its contract code", async (status, body, code, needle) => {
-    const gitlab = new FakeGitLab([FakeGitLab.json(body, status)]).install();
+    // A 5xx on a GET is retried (tests/get-retry.test.ts), so it answers every attempt.
+    const attempts = status >= 500 ? 1 + GitLabClient.GET_RETRIES : 1;
+    const gitlab = new FakeGitLab(Array.from({ length: attempts }, () => FakeGitLab.json(body, status))).install();
 
     const e = await caught(() => new GitLabProvider({ token: TOKEN }).repository(REF));
 
     expect(e.code).toBe(code);
     expect(e.exitCode).toBe(status);
     expect(e.message).toContain(needle);
-    expect(gitlab.count).toBe(1);
+    expect(gitlab.count).toBe(attempts);
   });
 
   it("maps a 502 that is not JSON", async () => {
-    new FakeGitLab([new Response("<html>Bad Gateway</html>", { status: 502, headers: { "content-type": "text/html" } })]).install();
+    new FakeGitLab(Array.from({ length: 1 + GitLabClient.GET_RETRIES }, () => new Response("<html>Bad Gateway</html>", { status: 502, headers: { "content-type": "text/html" } }))).install();
 
     const e = await caught(() => new GitLabProvider({ token: TOKEN }).repository(REF));
 
